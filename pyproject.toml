@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pivot-diag"
+version = "0.1.0"
+description = "Audit pivot table configurations in Excel workbooks (overlaps, shared sources, broken links). Read-only, stdlib only."
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+pivot-diag = "pivot_diag.cli:main"
