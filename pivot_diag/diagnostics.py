@@ -67,8 +67,7 @@ def diagnose(extracted: dict) -> dict:
         if not pr.get("ok"):
             findings.append({
                 "status": "unparseable_ref",
-                "detail": f"pivot {p['name']!r}: source ref {ref!r} is not a bounded "
-                          f"cell range (e.g. whole-column A:E) — out of scope",
+                "detail": f"pivot {p['name']!r}: source ref {ref!r} could not be parsed",
             })
             parsed.append((p, None))
             continue
