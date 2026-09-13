@@ -69,9 +69,11 @@ def test_external_or_named_source_is_informational():
     assert r["findings"][0]["status"] == "external_source"
 
 
-def test_unparseable_ref_is_informational():
-    r = diagnose(_extract(_pivot("P1", "P1", "A3:B8", "Data", "A:E")))
-    assert r["findings"][0]["status"] == "unparseable_ref"
+def test_truly_unparseable_ref_is_informational():
+    """完全に解釈不能な ref のみ unparseable_ref になる（A:E は whole-column として正常パース）。"""
+    r = diagnose(_extract(_pivot("P1", "P1", "A3:B8", "Data", "###invalid###"), sheets=["Data"]))
+    up = [f for f in r["findings"] if f["status"] == "unparseable_ref"]
+    assert len(up) == 1
 
 
 def test_different_sheets_same_range_not_overlap():

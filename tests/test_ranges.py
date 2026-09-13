@@ -35,9 +35,11 @@ def test_parse_ref_reversed_bounds_are_normalized():
     assert (r["min_row"], r["min_col"], r["max_row"], r["max_col"]) == (1, 1, 20, 5)
 
 
-def test_parse_ref_whole_column_is_invalid_for_mvp():
+def test_parse_ref_whole_column_now_supported():
+    """全列参照は used range に対して展開される（issue #1）。"""
     r = parse_ref("Sheet1!A:E")
-    assert r["ok"] is False
+    assert r["ok"] is True
+    assert r.get("whole_column") is True
 
 
 def test_ranges_overlap_same_sheet():
@@ -56,3 +58,33 @@ def test_ranges_overlap_different_sheet_is_false():
 
 def test_ranges_overlap_invalid_is_false():
     assert ranges_overlap(parse_ref("Sheet1!A1:B2"), {"ok": False}) is False
+
+
+# ── 全列参照 (issue #1: raknaos 指摘) ──
+
+def test_parse_whole_column_ref():
+    r = parse_ref("Data!A:E", default_sheet="Data")
+    assert r["ok"] is True
+    assert r["sheet"] == "Data"
+    assert r["min_col"] == 1 and r["max_col"] == 5
+    assert r["min_row"] == 1 and r["max_row"] == 999999
+    assert r.get("whole_column") is True
+
+
+def test_whole_column_overlaps_bounded_range():
+    """全列参照 A:E は bounded range A1:D7 と列範囲が重なるため overlap = True。"""
+    wc = parse_ref("Data!A:E")
+    bounded = parse_ref("Data!A1:D7")
+    assert ranges_overlap(wc, bounded) is True
+
+
+def test_whole_column_no_overlap_different_cols():
+    wc = parse_ref("Data!F:J")
+    bounded = parse_ref("Data!A1:D7")
+    assert ranges_overlap(wc, bounded) is False
+
+
+def test_whole_column_different_sheet_no_overlap():
+    wc = parse_ref("Sheet2!A:E")
+    bounded = parse_ref("Data!A1:D7")
+    assert ranges_overlap(wc, bounded) is False

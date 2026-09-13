@@ -10,6 +10,11 @@ _CELL = r"\$?([A-Za-z]{1,3})\$?([0-9]{1,7})"
 _REF_RE = re.compile(
     rf"^(?:(?:'(?P<qs>[^']+)'|(?P<raw>[^'!:]+))!)?{_CELL}(?::{_CELL})?$"
 )
+# 全列参照 (A:E) 用（issue #1: raknaos 指摘）
+_WC_RE = re.compile(
+    rf"^(?:(?:'(?P<qs>[^']+)'|(?P<raw>[^'!:]+))!)?\$?(?P<c1>[A-Za-z]{{1,3}}):\$?(?P<c2>[A-Za-z]{{1,3}})$"
+)
+MAX_ROW = 999999  # 全列参照の実効的な行数上限（重なり判定用の境界値）
 
 
 def col_to_index(letters: str) -> int:
@@ -25,22 +30,36 @@ def parse_ref(ref: str, default_sheet: str = None) -> dict:
 
     返り値: {ok: True, sheet, min_row, min_col, max_row, max_col}
     失敗時: {ok: False, error: "..."}
+    全列参照 (A:E) は used range 全体とみなして行範囲を 1〜MAX_ROW に展開する。
     """
     if not ref or not ref.strip():
         return {"ok": False, "error": "empty ref"}
-    m = _REF_RE.match(ref.strip().replace("$", ""))
-    if not m:
-        return {"ok": False, "error": f"unparseable ref: {ref!r}"}
-    sheet = m.group("qs") or m.group("raw") or default_sheet
-    c1, r1 = col_to_index(m.group(3)), int(m.group(4))
-    c2 = col_to_index(m.group(5)) if m.group(5) else c1
-    r2 = int(m.group(6)) if m.group(6) else r1
-    return {
-        "ok": True,
-        "sheet": sheet,
-        "min_row": min(r1, r2), "max_row": max(r1, r2),
-        "min_col": min(c1, c2), "max_col": max(c1, c2),
-    }
+    clean = ref.strip().replace("$", "")
+    m = _REF_RE.match(clean)
+    if m:
+        sheet = m.group("qs") or m.group("raw") or default_sheet
+        c1, r1 = col_to_index(m.group(3)), int(m.group(4))
+        c2 = col_to_index(m.group(5)) if m.group(5) else c1
+        r2 = int(m.group(6)) if m.group(6) else r1
+        return {
+            "ok": True,
+            "sheet": sheet,
+            "min_row": min(r1, r2), "max_row": max(r1, r2),
+            "min_col": min(c1, c2), "max_col": max(c1, c2),
+        }
+    # 全列参照 fallback (issue #1)
+    wc = _WC_RE.match(clean)
+    if wc:
+        sheet = wc.group("qs") or wc.group("raw") or default_sheet
+        c1, c2 = col_to_index(wc.group("c1")), col_to_index(wc.group("c2"))
+        return {
+            "ok": True,
+            "sheet": sheet,
+            "min_row": 1, "max_row": MAX_ROW,
+            "min_col": min(c1, c2), "max_col": max(c1, c2),
+            "whole_column": True,
+        }
+    return {"ok": False, "error": f"unparseable ref: {ref!r}"}
 
 
 def ranges_overlap(a: dict, b: dict) -> bool:
